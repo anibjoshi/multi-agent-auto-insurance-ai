@@ -1,0 +1,42 @@
+{
+  "generated_at": "2025-06-28T13:47:59.953307",
+  "dataset_type": "consolidated",
+  "description": "Consolidated benchmark from 4 labeled datasets",
+  "total_claims": 700,
+  "source_datasets": [
+    "main_450 (450 claims)",
+    "main_50 (50 claims)",
+    "eval_combo_labeled (100 claims)",
+    "eval_nl_labeled (100 claims)"
+  ],
+  "distribution": {
+    "PARTIAL": 122,
+    "REJECTED": 311,
+    "APPROVED": 177,
+    "ESCALATE": 90
+  },
+  "splits": {
+    "train": 489,
+    "val": 105,
+    "test": 106
+  },
+  "files": {
+    "full_dataset": {
+      "inputs": "inputs/consolidated_inputs.jsonl",
+      "expected": "expected/consolidated_expected.jsonl"
+    },
+    "splits": {
+      "train_inputs": "splits/consolidated_train_inputs.jsonl",
+      "train_expected": "splits/consolidated_train_expected.jsonl",
+      "val_inputs": "splits/consolidated_val_inputs.jsonl",
+      "val_expected": "splits/consolidated_val_expected.jsonl",
+      "test_inputs": "splits/consolidated_test_inputs.jsonl",
+      "test_expected": "splits/consolidated_test_expected.jsonl"
+    }
+  },
+  "usage": {
+    "quick_test": "python3 benchmarks/scripts/quick_test.py consolidated 5",
+    "full_benchmark": "python3 benchmarks/scripts/benchmark_runner.py consolidated",
+    "split_benchmark": "python3 benchmarks/scripts/benchmark_runner.py consolidated_test"
+  }
+}
