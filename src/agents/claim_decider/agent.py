@@ -26,6 +26,7 @@ class ClaimDeciderAgent(BaseReActAgent):
         
         # Override the tool to provide actual agent responses
         def get_current_agent_responses() -> str:
+            """Get the current agent responses for final decision making."""
             return f"Current agent responses:\n{responses_json}"
         
         # Temporarily replace the tool

@@ -1,9 +1,9 @@
 import asyncio
-from typing import Dict, Any, TypedDict, Annotated, Sequence
+from typing import Dict, Any, TypedDict, Annotated, List
 from langgraph.graph import StateGraph, END, START
-from langgraph.graph.message import add_messages
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_openai import ChatOpenAI
+import time
 from .models import ClaimData, AgentResponse, ClaimProcessingState
 from .tools import set_current_claim_data
 from .agents import (
@@ -23,7 +23,7 @@ from .agents import (
 class ClaimState(TypedDict):
     """LangGraph state for claim processing workflow."""
     claim_data: Dict[str, Any]
-    agent_responses: Annotated[Sequence[Dict[str, Any]], add_messages]
+    agent_responses: List[Dict[str, Any]]
     final_decision: Dict[str, Any]
     processing_complete: bool
     current_step: str
@@ -64,18 +64,18 @@ class ClaimProcessingWorkflow:
         # Add nodes for processing
         workflow.add_node("claim_decision", self._claim_decision_node)
         
-        # Add a parallel processing node for all agents
-        workflow.add_node("parallel_processing", self._parallel_processing_node)
+        # Add a sequential processing node for all agents
+        workflow.add_node("sequential_processing", self._parallel_processing_node)
         
         # Set entry point and define flow
-        workflow.set_entry_point("parallel_processing")
-        workflow.add_edge("parallel_processing", "claim_decision")
+        workflow.set_entry_point("sequential_processing")
+        workflow.add_edge("sequential_processing", "claim_decision")
         workflow.add_edge("claim_decision", END)
         
         return workflow.compile(checkpointer=MemorySaver())
     
     async def _parallel_processing_node(self, state: ClaimState) -> ClaimState:
-        """Process all ReAct agents in parallel using asyncio.gather for true parallelism."""
+        """Process all ReAct agents sequentially to avoid rate limits."""
         claim_data = ClaimData(**state["claim_data"])
         
         # Set the claim data in the tools system for ReAct agents to access
@@ -83,26 +83,43 @@ class ClaimProcessingWorkflow:
         
         # Get all processing agents except ClaimDecider
         processing_agents = [
-            self.agents["policy_validator"],
-            self.agents["document_validator"],
-            self.agents["driver_verifier"],
-            self.agents["vehicle_damage_evaluator"],
-            self.agents["coverage_evaluator"],
-            self.agents["catastrophe_checker"],
-            self.agents["liability_assessor"],
-            self.agents["rental_benefit_checker"],
-            self.agents["fraud_detector"]
+            ("policy_validator", self.agents["policy_validator"]),
+            ("document_validator", self.agents["document_validator"]),
+            ("driver_verifier", self.agents["driver_verifier"]),
+            ("vehicle_damage_evaluator", self.agents["vehicle_damage_evaluator"]),
+            ("coverage_evaluator", self.agents["coverage_evaluator"]),
+            ("catastrophe_checker", self.agents["catastrophe_checker"]),
+            ("liability_assessor", self.agents["liability_assessor"]),
+            ("rental_benefit_checker", self.agents["rental_benefit_checker"]),
+            ("fraud_detector", self.agents["fraud_detector"])
         ]
         
-        # Process all ReAct agents in true parallel using asyncio.gather
-        # Note: ReAct agents don't need claim_data passed directly - they use tools
-        agent_tasks = [agent.process_claim() for agent in processing_agents]
-        agent_responses = await asyncio.gather(*agent_tasks)
+        agent_responses = []
+        
+        # Process agents sequentially with rate limiting
+        for i, (agent_name, agent) in enumerate(processing_agents):
+            try:
+                response = await agent.process_claim()
+                agent_responses.append(response.model_dump())
+                
+                # Add delay between agents to avoid rate limits (except for last agent)
+                if i < len(processing_agents) - 1:
+                    await asyncio.sleep(0.5)  # 500ms delay between agents
+                    
+            except Exception as e:
+                # Create error response for failed agents
+                error_response = AgentResponse(
+                    agent=agent_name.replace("_", " ").title(),
+                    status="ESCALATE",
+                    reason="agent_execution_error",
+                    explanation=f"Agent execution failed: {str(e)}"
+                )
+                agent_responses.append(error_response.model_dump())
         
         return {
             **state,
-            "agent_responses": [response.model_dump() for response in agent_responses],
-            "current_step": "parallel_processing"
+            "agent_responses": agent_responses,
+            "current_step": "sequential_processing"
         }
     
 
@@ -129,8 +146,11 @@ class ClaimProcessingWorkflow:
             current_step="start"
         )
         
-        # Execute the LangGraph workflow
-        result = await self.workflow.ainvoke(initial_state)
+        # Provide required thread configuration for checkpointer
+        config = {"configurable": {"thread_id": f"claim_{claim_data.claim_id}"}}
+        
+        # Execute the LangGraph workflow with proper configuration
+        result = await self.workflow.ainvoke(initial_state, config=config)
         
         # Convert back to ClaimProcessingState
         return ClaimProcessingState(

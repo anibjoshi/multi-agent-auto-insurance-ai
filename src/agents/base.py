@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from typing import List, Callable, Dict, Any
 from langgraph.prebuilt import create_react_agent
 from langchain_core.language_models import BaseChatModel
+from langchain_core.tools import tool
 from ..models import AgentResponse
 from ..prompt_loader import load_agent_prompt
 import json
@@ -13,7 +14,7 @@ class BaseReActAgent(ABC):
     def __init__(self, llm: BaseChatModel):
         self.llm = llm
         self.agent_name = self.__class__.__name__.replace("Agent", "")
-        self.tools = self.get_tools()
+        self.tools = self.get_tools()  # Tools are already decorated with @tool
         self.agent = create_react_agent(
             model=self.llm,
             tools=self.tools,

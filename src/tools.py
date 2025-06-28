@@ -5,6 +5,7 @@ Tools for ReAct agents to access and analyze claim data.
 from typing import Dict, Any, Optional
 from datetime import datetime, date
 import json
+from langchain_core.tools import tool
 from .models import ClaimData
 
 
@@ -18,6 +19,7 @@ def set_current_claim_data(claim_data: ClaimData) -> None:
     _current_claim_data = claim_data
 
 
+@tool
 def get_claim_basic_info() -> str:
     """Get basic claim information including ID, dates, and state."""
     if not _current_claim_data:
@@ -34,6 +36,7 @@ def get_claim_basic_info() -> str:
     return json.dumps(info, indent=2)
 
 
+@tool
 def get_policy_information() -> str:
     """Get policy-related information including dates, limits, and endorsements."""
     if not _current_claim_data:
@@ -52,6 +55,7 @@ def get_policy_information() -> str:
     return json.dumps(info, indent=2)
 
 
+@tool
 def get_driver_information() -> str:
     """Get driver-related information including license status and policy listing."""
     if not _current_claim_data:
@@ -68,6 +72,7 @@ def get_driver_information() -> str:
     return json.dumps(info, indent=2)
 
 
+@tool
 def get_vehicle_information() -> str:
     """Get vehicle and damage information."""
     if not _current_claim_data:
@@ -85,6 +90,7 @@ def get_vehicle_information() -> str:
     return json.dumps(info, indent=2)
 
 
+@tool
 def get_coverage_details() -> str:
     """Get coverage and endorsement details."""
     if not _current_claim_data:
@@ -100,6 +106,7 @@ def get_coverage_details() -> str:
     return json.dumps(info, indent=2)
 
 
+@tool
 def get_liability_information() -> str:
     """Get liability and fault information."""
     if not _current_claim_data:
@@ -113,6 +120,7 @@ def get_liability_information() -> str:
     return json.dumps(info, indent=2)
 
 
+@tool
 def get_rental_information() -> str:
     """Get rental car and loss of use information."""
     if not _current_claim_data:
@@ -127,6 +135,7 @@ def get_rental_information() -> str:
     return json.dumps(info, indent=2)
 
 
+@tool
 def get_catastrophe_information() -> str:
     """Get catastrophe and environmental information."""
     if not _current_claim_data:
@@ -140,6 +149,7 @@ def get_catastrophe_information() -> str:
     return json.dumps(info, indent=2)
 
 
+@tool
 def get_documentation_info() -> str:
     """Get document-related information."""
     if not _current_claim_data:
@@ -154,6 +164,7 @@ def get_documentation_info() -> str:
     return json.dumps(info, indent=2)
 
 
+@tool
 def calculate_days_between_dates(start_date: str, end_date: str) -> str:
     """Calculate the number of days between two dates."""
     try:
@@ -165,6 +176,7 @@ def calculate_days_between_dates(start_date: str, end_date: str) -> str:
         return f"Error calculating days: {str(e)}"
 
 
+@tool
 def check_total_loss_threshold() -> str:
     """Check if repair estimate meets total loss threshold (80% of ACV)."""
     if not _current_claim_data:
@@ -182,6 +194,7 @@ def check_total_loss_threshold() -> str:
     return json.dumps(result, indent=2)
 
 
+@tool
 def check_mileage_discrepancy() -> str:
     """Check for mileage discrepancies between telematics and reported odometer."""
     if not _current_claim_data:
