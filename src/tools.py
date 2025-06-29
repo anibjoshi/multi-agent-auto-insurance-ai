@@ -212,4 +212,25 @@ def check_mileage_discrepancy() -> str:
         "allowed_variance": allowed_variance,
         "is_suspicious": is_suspicious
     }
-    return json.dumps(result, indent=2) 
+    return json.dumps(result, indent=2)
+
+
+@tool
+def calculate_days_since_policy_start() -> str:
+    """Calculate the number of days between policy start date and incident date."""
+    if not _current_claim_data:
+        return "No claim data available"
+    
+    try:
+        policy_start = _current_claim_data.policy_start_date
+        incident_date = _current_claim_data.incident_date
+        days_since_start = (incident_date - policy_start).days
+        
+        result = {
+            "policy_start_date": str(policy_start),
+            "incident_date": str(incident_date),
+            "days_since_policy_start": days_since_start
+        }
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        return f"Error calculating days since policy start: {str(e)}" 

@@ -2,11 +2,8 @@ from typing import List, Callable
 from ..base import BaseReActAgent
 from ...tools import (
     get_claim_basic_info,
-    get_policy_information,
     get_vehicle_information,
-    get_catastrophe_information,
-    check_mileage_discrepancy,
-    calculate_days_between_dates
+    check_mileage_discrepancy
 )
 
 
@@ -17,11 +14,8 @@ class FraudDetectorAgent(BaseReActAgent):
         """Return tools specific to fraud detection."""
         return [
             get_claim_basic_info,
-            get_policy_information,
             get_vehicle_information,
-            get_catastrophe_information,
-            check_mileage_discrepancy,
-            calculate_days_between_dates
+            check_mileage_discrepancy
         ]
     
 # get_system_prompt is now inherited from BaseReActAgent and loads from file 

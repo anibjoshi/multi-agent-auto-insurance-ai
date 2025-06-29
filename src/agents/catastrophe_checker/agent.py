@@ -2,7 +2,9 @@ from typing import List, Callable
 from ..base import BaseReActAgent
 from ...tools import (
     get_claim_basic_info,
-    get_catastrophe_information
+    get_catastrophe_information,
+    get_policy_information,
+    calculate_days_since_policy_start
 )
 
 
@@ -13,7 +15,9 @@ class CatastropheCheckerAgent(BaseReActAgent):
         """Return tools specific to catastrophe checking."""
         return [
             get_claim_basic_info,
-            get_catastrophe_information
+            get_catastrophe_information,
+            get_policy_information,
+            calculate_days_since_policy_start
         ]
     
 # get_system_prompt is now inherited from BaseReActAgent and loads from file 

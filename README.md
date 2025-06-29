@@ -1,6 +1,6 @@
 # ReAct Multi-Agent Auto Insurance Claim Processing System
 
-A production-grade ReAct multi-agent AI system for automated auto insurance claim processing using LangGraph, tool calling, and OpenAI GPT models.
+A production-grade ReAct multi-agent AI system for automated auto insurance claim processing using LangGraph, tool calling, and **multiple LLM providers** (OpenAI, Anthropic, Google, Groq).
 
 ## 🎯 Overview
 
@@ -13,6 +13,7 @@ This system implements a sophisticated **ReAct (Reasoning + Acting) multi-agent 
 - **🧠 Advanced Reasoning**: Step-by-step reasoning trails with tool usage documentation
 - **⚡ Parallel Processing**: ReAct agents run concurrently for fast claim processing
 - **🔄 LangGraph Orchestration**: Production-grade workflow management with state isolation
+- **🤖 Multi-LLM Support**: Choose from OpenAI, Anthropic (Claude), Google (Gemini), and Groq (Llama) providers
 - **🌐 REST API**: FastAPI-based web service with interactive documentation
 - **📊 Detailed Audit Trails**: Complete reasoning and tool usage history for each decision
 - **🚀 Batch Processing**: Handle multiple claims efficiently with proper data isolation
@@ -62,10 +63,21 @@ Nine specialized ReAct agents analyze the claim simultaneously using domain-spec
    ```
 
 2. **Configure Environment**
-   Create a `.env` file:
+   Copy and configure environment:
+   ```bash
+   cp .env.example .env
+   # Edit .env and add your API keys
+   ```
+   
+   Example `.env` configuration:
    ```env
+   # Choose your provider: openai, anthropic, google, groq
+   LLM_PROVIDER=openai
    OPENAI_API_KEY=your_openai_api_key_here
    OPENAI_MODEL=gpt-4-turbo-preview
+   
+   # Or use the interactive setup
+   python scripts/setup_providers.py
    ```
 
 3. **Test the System**
@@ -91,14 +103,18 @@ Nine specialized ReAct agents analyze the claim simultaneously using domain-spec
 
 6. **Run Accuracy Benchmarks**
    ```bash
-   # Quick test (5 claims for development)
+   # Quick test with different providers
+   python benchmarks/scripts/quick_test.py --provider openai
+   python benchmarks/scripts/quick_test.py --provider anthropic
+   python benchmarks/scripts/quick_test.py --provider google
+   python benchmarks/scripts/quick_test.py --provider groq
+   
+   # List available providers
+   python benchmarks/scripts/quick_test.py --list-providers
+   
+   # Legacy make commands still work
    make quick-benchmark
-   
-   # Full benchmark (customizable)
    make benchmark
-   
-   # Full benchmark on 450 claims
-   make benchmark-full
    ```
 
 7. **Manage Prompts (Optional)**
@@ -171,12 +187,52 @@ for response in result.agent_responses:
 
 The system supports various configuration options through environment variables:
 
-- **OpenAI Settings**: API key, model selection, temperature
+- **Multi-LLM Settings**: Provider selection, API keys, model selection, temperature
 - **API Configuration**: Host, port, CORS settings
 - **Logging**: Log levels, output formats
-- **Performance**: Batch sizes, timeout settings
+- **Performance**: Batch sizes, timeout settings, provider-optimized rate limiting
 
-See [SETUP.md](SETUP.md) for detailed configuration instructions.
+See [SETUP.md](SETUP.md) and [MULTI_LLM_SETUP.md](docs/MULTI_LLM_SETUP.md) for detailed configuration instructions.
+
+## 🤖 Multi-LLM Provider Support
+
+The system now supports multiple LLM providers for maximum flexibility:
+
+| Provider | Models | Speed | Cost | Best For |
+|----------|--------|-------|------|----------|
+| **OpenAI** | GPT-4, GPT-3.5-turbo | Medium | High | Highest quality reasoning |
+| **Anthropic** | Claude-3.5-Sonnet, Claude-3-Opus | Medium | High | Long context, safety |
+| **Google** | Gemini-1.5-Pro, Gemini-1.5-Flash | Fast | Medium | Fast processing, multimodal |
+| **Groq** | Llama-3.1-70B, Mixtral-8x7B | Very Fast | Low | Speed, cost-effective |
+
+### Quick Provider Testing
+
+```bash
+# Test different providers
+python benchmarks/scripts/quick_test.py --provider openai --claims 5
+python benchmarks/scripts/quick_test.py --provider anthropic --claims 3
+python benchmarks/scripts/quick_test.py --provider google --claims 5
+python benchmarks/scripts/quick_test.py --provider groq --claims 5
+
+# Interactive setup and testing
+python scripts/setup_providers.py
+```
+
+### API Usage with Different Providers
+
+```bash
+# Use specific provider for single request
+curl -X POST "http://localhost:8000/process-claim?provider=anthropic" \
+  -H "Content-Type: application/json" \
+  -d @sample_claim.json
+
+# Switch default provider
+curl -X POST "http://localhost:8000/switch-provider" \
+  -H "Content-Type: application/json" \
+  -d '{"provider": "groq"}'
+```
+
+For detailed setup instructions, see [Multi-LLM Setup Guide](docs/MULTI_LLM_SETUP.md).
 
 ## 📊 Agent Decision Logic
 

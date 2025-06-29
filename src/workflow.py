@@ -2,10 +2,11 @@ import asyncio
 from typing import Dict, Any, TypedDict, Annotated, List
 from langgraph.graph import StateGraph, END, START
 from langgraph.checkpoint.memory import MemorySaver
-from langchain_openai import ChatOpenAI
 import time
 from .models import ClaimData, AgentResponse, ClaimProcessingState
 from .tools import set_current_claim_data
+from .config import settings
+from .llm_factory import create_llm
 from .agents import (
     PolicyValidatorAgent,
     DocumentValidatorAgent,
@@ -30,17 +31,44 @@ class ClaimState(TypedDict):
 
 
 class ClaimProcessingWorkflow:
-    """Production-grade multi-agent claim processing workflow using LangGraph."""
+    """Production-grade multi-agent claim processing workflow using LangGraph with multi-LLM support."""
     
-    def __init__(self, openai_api_key: str, model_name: str = "gpt-4-turbo-preview"):
-        self.llm = ChatOpenAI(
-            api_key=openai_api_key,
-            model=model_name,
-            temperature=0.1,  # Low temperature for consistent decisions
-            max_tokens=1000
-        )
+    def __init__(self, provider: str = None, api_key: str = None, model_name: str = None):
+        """
+        Initialize workflow with specified LLM provider.
         
-        # Initialize all agents
+        Args:
+            provider: LLM provider ("openai", "anthropic", "google", "groq"). Defaults to config.
+            api_key: API key for the provider. Defaults to config.
+            model_name: Model name to use. Defaults to config.
+        """
+        # Update settings if custom parameters provided
+        if provider:
+            settings.llm_provider = provider
+        if api_key:
+            if provider == "openai":
+                settings.openai_api_key = api_key
+            elif provider == "anthropic":
+                settings.anthropic_api_key = api_key
+            elif provider == "google":
+                settings.google_api_key = api_key
+            elif provider == "groq":
+                settings.groq_api_key = api_key
+        if model_name:
+            if provider == "openai":
+                settings.openai_model = model_name
+            elif provider == "anthropic":
+                settings.anthropic_model = model_name
+            elif provider == "google":
+                settings.google_model = model_name
+            elif provider == "groq":
+                settings.groq_model = model_name
+        
+        # Create LLM using factory
+        self.llm = create_llm(settings)
+        self.provider = settings.llm_provider
+        
+        # Initialize all agents with the LLM
         self.agents = {
             "policy_validator": PolicyValidatorAgent(self.llm),
             "document_validator": DocumentValidatorAgent(self.llm),
@@ -96,6 +124,9 @@ class ClaimProcessingWorkflow:
         
         agent_responses = []
         
+        # Adjust rate limiting based on provider
+        delay = self._get_rate_limit_delay()
+        
         # Process agents sequentially with rate limiting
         for i, (agent_name, agent) in enumerate(processing_agents):
             try:
@@ -104,7 +135,7 @@ class ClaimProcessingWorkflow:
                 
                 # Add delay between agents to avoid rate limits (except for last agent)
                 if i < len(processing_agents) - 1:
-                    await asyncio.sleep(0.5)  # 500ms delay between agents
+                    await asyncio.sleep(delay)
                     
             except Exception as e:
                 # Create error response for failed agents
@@ -122,7 +153,15 @@ class ClaimProcessingWorkflow:
             "current_step": "sequential_processing"
         }
     
-
+    def _get_rate_limit_delay(self) -> float:
+        """Get appropriate delay based on LLM provider rate limits."""
+        rate_limits = {
+            "openai": 0.5,      # 500ms for OpenAI
+            "anthropic": 0.3,   # 300ms for Claude
+            "google": 0.2,      # 200ms for Gemini
+            "groq": 0.1         # 100ms for Groq (fastest)
+        }
+        return rate_limits.get(self.provider, 0.5)
     
     async def _claim_decision_node(self, state: ClaimState) -> ClaimState:
         """Final claim decision node."""
@@ -186,8 +225,17 @@ class ClaimProcessingWorkflow:
     
     def get_workflow_visualization(self) -> str:
         """Get a text representation of the LangGraph ReAct workflow."""
-        return """
-LangGraph ReAct Multi-Agent Auto Insurance Claim Processing Workflow:
+        provider_info = {
+            "openai": "OpenAI GPT",
+            "anthropic": "Anthropic Claude", 
+            "google": "Google Gemini",
+            "groq": "Groq Llama"
+        }
+        current_provider = provider_info.get(self.provider, self.provider.upper())
+        
+        return f"""
+LangGraph ReAct Multi-Agent Auto Insurance Claim Processing Workflow
+Provider: {current_provider}
 
                         START
                           ↓
@@ -198,7 +246,7 @@ LangGraph ReAct Multi-Agent Auto Insurance Claim Processing Workflow:
               │ DriverVerifier (ReAct)          │
               │ VehicleDamageEvaluator (ReAct)  │  ← All ReAct agents run in parallel
               │ CoverageEvaluator (ReAct)       │    using tools to access claim data
-              │ CatastropheChecker (ReAct)      │
+              │ CatastropheChecker (ReAct)      │    powered by {current_provider}
               │ LiabilityAssessor (ReAct)       │
               │ RentalBenefitChecker (ReAct)    │
               │ FraudDetector (ReAct)           │
@@ -208,11 +256,17 @@ LangGraph ReAct Multi-Agent Auto Insurance Claim Processing Workflow:
                           ↓
                          END
 
+Multi-LLM Support:
+• OpenAI: GPT-4, GPT-3.5-turbo
+• Anthropic: Claude-3.5-Sonnet, Claude-3-Opus, Claude-3-Haiku  
+• Google: Gemini-1.5-Pro, Gemini-1.5-Flash
+• Groq: Llama-3.1-70B, Llama-3.1-8B, Mixtral-8x7B
+
 ReAct Benefits:
 • Reasoning and Acting agents with tool calling
 • Claim data accessed through specialized tools
 • Each agent uses domain-specific tool sets
-• True parallel execution with LangGraph orchestration
+• Provider-optimized rate limiting
 • Advanced reasoning capabilities with step-by-step analysis
 • Proper error handling and checkpointing
         """ 
